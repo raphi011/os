@@ -1,7 +1,17 @@
+/**
+ * @file stegit.c
+ * @author Raphael Gruber <raphi011@gmail.com>
+ * @date 15.10.2014
+ *
+ * @brief stegit program module.
+ * 
+ **/
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "stegit.h"
 
 int main(int argc, char **argv)
 {
