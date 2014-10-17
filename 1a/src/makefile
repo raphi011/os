@@ -1,4 +1,4 @@
-CFLAGS= -Wextra -pedantic -std=c99 -D_XOPEN_SOURCE=500 -D_BSD_SOURCE
+CFLAGS= -pedantic -std=c99 -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -Wall
 
 all: stegit.c 
 	gcc-4.9 $(CFLAGS) -o stegit stegit.c

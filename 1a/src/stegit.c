@@ -2,34 +2,33 @@
  * @file stegit.c
  * @author Raphael Gruber <raphi011@gmail.com>
  * @date 15.10.2014
- *
  * @brief stegit program module.
- * 
+ * @details Test
  **/
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 
 #include "stegit.h"
+
+ #define BUFFER 100
 
 int main(int argc, char **argv)
 {
 	char *file = NULL;
-	int index;
+	//int index;
 	int c;
 
   	opterr = 0;
 
+  	bool find = false;
+  	bool hide = false;
 
 	while ((c = getopt (argc, argv, "fho:")) != -1)
 		switch (c)
 		{
 			case 'f':
-				printf("option -f\n");
+				find = true;
 				break;
 			case 'h':
-				printf("option -h\n");
+				hide = true;
 				break;
 			case 'o':
 				file = optarg;
@@ -44,11 +43,53 @@ int main(int argc, char **argv)
 					fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
 				return 1;
 			default:
-				abort ();
+				assert(0);
 	}
 
-	for (index = optind; index < argc; index++)
-		printf ("Non-option argument %s\n", argv[index]);
+	if (find && hide) {
+		fprintf(stderr, "Use either -h or -f option");
+		return 1;
+	}
+
+	char * input = getInputLine();
+
+	printf("You wrote this: %s", input);
+
+	free(input);
 
 	return 0;
 }
+
+char * getInputLine(void) {
+    char * line = malloc(100), * linep = line;
+    size_t lenmax = 100, len = lenmax;
+    int c;
+
+    if(line == NULL)
+        return NULL;
+
+    for(;;) {
+        c = fgetc(stdin);
+        if(c == EOF)
+            break;
+
+        if(--len == 0) {
+            len = lenmax;
+            char * linen = realloc(linep, lenmax *= 2);
+
+            if(linen == NULL) {
+                free(linep);
+                return NULL;
+            }
+            line = linen + (line - linep);
+            linep = linen;
+        }
+
+        if((*line++ = c) == '\n')
+            break;
+    }
+    *line = '\0';
+    return linep;
+}
+
+
