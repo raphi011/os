@@ -5,12 +5,10 @@
 
 CFLAGS= -pedantic -std=c99 -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -Wall
 
-LIB_FILES = *.h
-
-all: stegit.c $(LIB_FILES)
+all: stegit.c
 	gcc $(CFLAGS) -o stegit stegit.c
 
-debug: stegit.c $(LIB_FILES)
+debug: stegit.c
 	gcc $(CFLAGS) -g -o stegit stegit.c
 
 clean: 
