@@ -3,7 +3,7 @@
 # Date:  	17.10.2014         
 
 
-CFLAGS= -pedantic -std=c99 -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -Wall
+CFLAGS= -pedantic -std=c99 -D_XOPEN_SOURCE=500 -D_DEFAULT_SOURCE -Wall
 FILES= client.c server.c
 
 all: $(FILES)

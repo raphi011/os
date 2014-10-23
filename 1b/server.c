@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
 
     listen(sockfd,5);
 
-    int clilen = sizeof(cli_addr);
+    unsigned int clilen = sizeof(cli_addr);
     connfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
     
     if (connfd < 0) {
