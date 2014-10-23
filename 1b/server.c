@@ -296,7 +296,39 @@ int main(int argc, char *argv[])
        listen, and wait for new connections, which should be assigned to
        `connfd`. Terminate the program in case of an error.
     */
-    #error "insert your code here"
+
+
+
+    struct sockaddr_in serv_addr, cli_addr;
+
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);  
+
+    if (sockfd < 0) {
+      // error("ERROR opening socket");
+    }   
+
+    int enable = 1;
+
+    if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR, &enable, sizeof enable) < 0) {
+        // error
+    }
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(options.portno);
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        // error("ERROR on binding");
+    }
+
+    listen(sockfd,5);
+
+    int clilen = sizeof(cli_addr);
+    connfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    
+    if (connfd < 0) {
+      // error("ERROR on accept");
+    }
 
     /* accepted the connection */
     ret = EXIT_SUCCESS;
@@ -322,7 +354,11 @@ int main(int argc, char *argv[])
         DEBUG("Sending byte 0x%x\n", buffer[0]);
 
         /* send message to client */
-        #error "insert your code here"
+        
+        if (write(connfd, &buffer, 1) < 0){
+            //
+        }
+
 
         /* We sent the answer to the client; now stop the game
            if its over, or an error occured */

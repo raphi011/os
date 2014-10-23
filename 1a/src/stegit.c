@@ -142,8 +142,7 @@ void hide(const char* in, FILE* out) {
 	srand(time(NULL));
 	
 	int dot = nextDot();
-	int ret;
-
+	
 	for (int i = 0; in[i] != '\0'; i++) {
 
 		int c = in[i];
@@ -158,14 +157,12 @@ void hide(const char* in, FILE* out) {
 			continue;
 
 		if (dot-- == 0) {
-			ret = fprintf(out, "%s. ", words[c]);
+			CHECK_PRINTF(fprintf(out, "%s. ", words[c]))
 			dot = nextDot();
 		}
 		else  {
-			ret = fprintf(out, "%s ", words[c]);
+			CHECK_PRINTF(fprintf(out, "%s ", words[c]))
 		}
-
-		CHECK_PRINTF(ret)
 	}
 }
 
