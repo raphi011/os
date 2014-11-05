@@ -51,6 +51,7 @@
 
 
 /* === Macros === */
+#define ENDEBUG
 
 #ifdef ENDEBUG
 #define DEBUG(...) do { fprintf(stderr, __VA_ARGS__); } while(0)
@@ -304,30 +305,31 @@ int main(int argc, char *argv[])
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);  
 
     if (sockfd < 0) {
-      // error("ERROR opening socket");
+        bail_out(EXIT_FAILURE, "error creating socket");
     }   
 
     int enable = 1;
 
     if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR, &enable, sizeof enable) < 0) {
-        // error
+        bail_out(EXIT_FAILURE, "error setsockopt");
     }
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(options.portno);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
-
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        // error("ERROR on binding");
+        bail_out(EXIT_FAILURE, "error bind");     // error("ERROR on binding");
     }
 
     listen(sockfd,5);
 
-    int clilen = sizeof(cli_addr);
+    unsigned int clilen = sizeof(cli_addr);
     connfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-    
+   
+    (void)printf("Connected\n");
+ 
     if (connfd < 0) {
-      // error("ERROR on accept");
+      bail_out(EXIT_FAILURE, "error accept"); // error("ERROR on accept");
     }
 
     /* accepted the connection */
@@ -437,7 +439,7 @@ static void parse_args(int argc, char **argv, struct opts *options)
 
     /* read secret */
     for (i = 0; i < SLOTS; ++i) {
-        uint8_t color;
+        uint8_t color = -1;
         switch (secret_arg[i]) {
         case 'b':
             color = beige;
