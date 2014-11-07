@@ -2,6 +2,7 @@
 #include <stdlib.h>             /* EXIT_FAILURE and EXIT_SUCCESS */
 #include <assert.h>             /* assert() */
 #include <string.h>
+#include <getopt.h>
 #include "list.h"
 
 #define STREQ(a,b) (strcmp((a), (b)) == 0)
@@ -18,6 +19,10 @@ static void insert_after(struct listelem *after, const char *const value)
     /* TODO: insert your code */
     /* when setting 'val' of the list, use strdup(value); */
     /* if you do not use strdup(), destroy() will fail/crash */
+		struct listelem *next = malloc(sizeof(struct listelem));
+		next->val = strdup(value);
+		next->next = after->next;
+		after->next = next;
     return;
 }
 
@@ -35,6 +40,7 @@ int main(int argc, char **argv)
 
     int opt;
     int opt_s = -1, opt_a = -1;
+		int num;
     char *optstr;               /* used to point to <string> */
 
     /* START OF INTENTIONAL ERRORS */
@@ -43,20 +49,37 @@ int main(int argc, char **argv)
         case 's':
             if (opt_s != -1) {
                 fprintf(stderr, "opt_s multiple times\n");
-                usage()         /* does not return */
+                usage();         /* does not return */
             }
-            opt_s = -1;
+            opt_s = 1;
             break;
-        case 'x':
+        case 'a':
             if (opt_a != -1) {
                 fprintf(stderr, "opt_a multiple times\n");
                 usage();        /* does not return */
             }
-            opt_a = 23;         /* strtol return checking not required */
+            opt_a = 1;         /* strtol return checking not required */
+						num = atoi(optarg);						
             break;
+				case '?': 
+						fprintf(stderr, "unknown command\n");
+						usage();
             /* maybe add some extra checks for unknown options */
         }
     }
+
+    optstr = argv[optind];
+
+
+		if (opt_a == 1 && opt_s == 1) {
+                fprintf(stderr, "opt_a and opt_s set\n");
+                usage();        /* does not return */
+		}
+
+		if (opt_a == -1 && opt_s == -1) {
+                fprintf(stderr, "wether opt_a nor opt_s set\n");
+                usage();        /* does not return */
+		}
     /* END OF INTENTIONAL ERRORS */
 
     /* CHALLENGE 0:
@@ -75,14 +98,15 @@ int main(int argc, char **argv)
      * 'yes,' if it is equal to <string>, else 'no,' */
 
     if (opt_s != -1) {
-        for (; 0;) {            /* TODO: change it */
-            if (STREQ("foo", "bar")) {  /* TODO: change it */
-                printf("yes,");
-            } else {
-                printf("no,");
-            }
-        }
-        printf("\n");           /* do not remove this line */
+				while (current != NULL) {
+					if (STREQ(current->val, optstr)) {
+						printf("yes,");
+					} else {
+						printf("no,");
+					}
+					current = current->next;
+				}
+					printf("\n");           /* do not remove this line */
     }
     /* END OF CHALLENGE 1 */
 
@@ -92,10 +116,12 @@ int main(int argc, char **argv)
      * for debugging, the list can be printed with 'print_list(head)' */
     if (opt_a != -1) {
         /* iterate over the list and stop at the right entry */
-        for (; 0;) {            /* TODO: change it */
-            ;
+        for (int i = 0; i < num && current->next != NULL ; i++) {            /* TODO: change it */
+            current = current->next;
         }
+				print_list(head);
         insert_after(current, optstr);  /* assuming you stopped at current */
+				print_list(head);
         check_list(head);       /* do not remove this line or your solution does not count */
     }
     /* END OF CHALLENGE 2 */
