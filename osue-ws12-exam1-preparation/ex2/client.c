@@ -64,7 +64,7 @@ int main(int argc, char **argv)
             mode = (getopt_result == 'r') ? mode_request : mode_shutdown;
             break;
         case 'p':
-            if (server_port > 0) {
+           if (server_port > 0) {
                 usage();
             }
             if ((server_port = parse_port_number(optarg)) == 0) {
@@ -92,24 +92,94 @@ int main(int argc, char **argv)
     /* TODO: insert your code below */
     /********************************/
 
+
     /* Check that there are no additional (superfluous) arguments and
        that all required options (-r or -s, and -p) are present. */
+		if (optind < argc) {
+			usage();
+		}
 
-    /* Create socket */
+		if (server_port == 0) {
+			usage();
+		}
 
+		if (mode == mode_unset) {
+			usage();
+		}
+    
+		/* Create socket */
+
+		
+		int sockfd = socket(AF_INET,SOCK_STREAM, 0);
+		
+		if (sockfd < 0) {
+			fprintf(stderr, "socket error");
+			exit(EXIT_FAILURE);
+		}
+		
     /* Resolve host / convert IP String */
 
+		struct sockaddr_in serv;
+
+		serv.sin_port = htons(server_port);
+		serv.sin_family = AF_INET;
+		
+		if (inet_pton(AF_INET, SERVER_IPADDR_STR, &serv.sin_addr) != 1) {
+			fprintf(stderr, "inet_pton failed");			
+			exit(EXIT_FAILURE);
+		}
+
     /* Connect to server on server_port */
+		int error = connect(sockfd,(struct sockaddr*) &serv, sizeof (serv));
+		
     /* On error, try to connect to backup_port (if specified) */
+		
+		if (error < 0 && backup_port > 0) {
+			serv.sin_port = htons(backup_port);
+			error = connect(sockfd, (struct sockaddr*) &serv, sizeof(serv));
+		}
+
+		if (error < 0) {
+			fprintf(stderr, "connect failed");
+			exit(EXIT_FAILURE);
+		}
+
 
     /* prepare message, and send it to the server */
     (void) memset(message, 0x0, sizeof(msg_t));
+			
+		//char msg[];
+	  if (mode == mode_request) {	
+			strcpy(message, "request");
+		} else {
+			strcpy(message, "shutdown");
+		}
+
+		if (write(sockfd, message, sizeof(message)) < 0) {
+		 	 fprintf(stderr, "write error");
+			 exit(EXIT_FAILURE);
+		}
 
     /* In mode -r, receive and print reply (followed by newline) */
+		
+
+
+		if (mode == mode_request) {
+			msg_t response;
+			if (read(sockfd,response,sizeof(msg_t)) < 0) {
+				fprintf(stderr, "read error");
+				exit(EXIT_FAILURE);
+			}
+
+			printf(response);
+		}
 
 
     return EXIT_SUCCESS;
 }
+
+
+
 
 /* Do not edit source code below this line */
 /*-----------------------------------------*/
