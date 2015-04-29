@@ -1,6 +1,6 @@
-# File:		stegit
 # Author:	Raphael Gruber ( 0828630 )
-# Date:  	17.10.2014         
+# Modul: 	mastermind
+# Date:  	15.04.2015
 
 
 CFLAGS= -pedantic -std=c99 -D_XOPEN_SOURCE=500 -D_BSD_SOURCE -Wall

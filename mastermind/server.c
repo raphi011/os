@@ -51,7 +51,7 @@
 
 
 /* === Macros === */
-#define ENDEBUG
+//#define ENDEBUG
 
 #ifdef ENDEBUG
 #define DEBUG(...) do { fprintf(stderr, __VA_ARGS__); } while(0)
