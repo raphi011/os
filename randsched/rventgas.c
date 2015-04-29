@@ -1,6 +1,8 @@
+#include <time.h>
+#include <stdlib.h>
 #include <stdio.h>
 
-int main(int argc, char* argv[]) {
+int main() {
     int error = 0;
 
     srand(time(NULL));
