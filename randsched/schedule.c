@@ -8,7 +8,8 @@
 static const char* modulname;
 
 static void usage() {
-
+    (void)fprintf(stderr, "usage: %s [-s <seconds>] [-f <seconds>] <program> <emergency> <logfile>", modulname);
+    exit(EXIT_FAILURE);
 }
 
 
