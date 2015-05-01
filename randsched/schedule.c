@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 static const char* modulname;
 
@@ -43,6 +45,23 @@ int main(int argc, char* argv[]) {
     char* emergency = argv[index++];
     char* logfile = argv[index]; 
     
+    pid_t pid;
+    int status;
+
+    switch (pid = fork()) {
+        case -1: bail_out("Fork failed");
+                 break;
+        case 0:  /* childprocess */
+
+                 break;
+        default: /* parent process */
+                 int pid = wait(&status);
+                 if (WEXITSTATUS(status)) {
+                    break;
+                 }
+                 break;
+
+    }
 
 
 }
