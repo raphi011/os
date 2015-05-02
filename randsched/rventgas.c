@@ -2,7 +2,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int main(void) {
+static const char* modulname = "rventgas";
+
+int main(int argc, char *argv[]) {
+    
+    if (argc > 0) {
+        modulname = argv[0]; 
+    }
+
+    if (argc > 1) {
+        (void)fprintf(stderr, "usage: %s\n", modulname);
+        exit(EXIT_FAILURE);
+    }
+
     int error = 0;
 
     srand(time(NULL));
