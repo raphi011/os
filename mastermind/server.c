@@ -283,8 +283,8 @@ int main(int argc, char *argv[])
         struct sigaction s;
         s.sa_handler = signal_handler;
         (void) memcpy(&s.sa_mask, &blocked_signals, sizeof(s.sa_mask));
-        s.sa_flags   = SA_RESTART;
-        for(int i = 0; i < COUNT_OF(signals); i++) {
+        s.sa_flags = SA_RESTART;
+        for (int i = 0; i < COUNT_OF(signals); i++) {
             if (sigaction(signals[i], &s, NULL) < 0) {
                 bail_out(EXIT_FAILURE, "sigaction");
             }
