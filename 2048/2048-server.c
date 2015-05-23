@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
@@ -37,39 +38,43 @@ static void bail_out(int eval, const char *fmt, ...)
     exit(eval);
 }
 
+/** parse_int
+ * @brief Parses an int value
+ * @params str The char * that will be parsed
+ * @params ptr The int * where the value will be stored
+ * @return 1 if str was an int, else 0
+ */
+static int parse_int(char * str, int * ptr) {
+    char * endptr;
+    
+    *ptr = strtol(str, &endptr, 10);
+    
+    // todo, function doesn't check all errors
+    return (*endptr == '\0'); 
+}
+
 int main(int argc, char* argv[]) {
     
     modulname = argv[0];
-    int index;
     int c; 
+    int power_of_two;
 
-    while ((c = getopt (argc, argv, "s:f:")) != -1) {
+    while ((c = getopt (argc, argv, "p:")) != -1) {
         switch (c) {
-            case 's':
-                /* if (parseInt(optarg, &timeframe)) {
+            case 'p':
+                if (parse_int(optarg, &power_of_two)) {
                     usage();   
-                } */
+                } 
                 break;
-            case 'f':
-                /* if (parseInt(optarg, &timeframe_duration)) {
-                    usage();   
-                }  */
-                break;
+            case '?':
+                usage();   
             default: 
-                usage(); 
+                assert(0);
         }
     }
 
-    index = optind;
-
-    if ((argc-index) != 3 ) {
+    if (argc != optind) {
         usage(); 
     }
-    
-    char* program = argv[index++];
-    char* emergency = argv[index++];
-    char* logfile = argv[index]; 
-    
-
 }
 
