@@ -1,5 +1,7 @@
 #define _GNU_SOURCE
 
+#include <sys/mman.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -7,6 +9,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
+
+#include "helper.h"
 
 static const char* modulname;
 
@@ -36,21 +40,6 @@ static void bail_out(int eval, const char *fmt, ...)
 
     free_resources();
     exit(eval);
-}
-
-/** parse_int
- * @brief Parses an int value
- * @params str The char * that will be parsed
- * @params ptr The int * where the value will be stored
- * @return 1 if str was an int, else 0
- */
-static int parse_int(char * str, int * ptr) {
-    char * endptr;
-    
-    *ptr = strtol(str, &endptr, 10);
-    
-    // todo, function doesn't check all errors
-    return (*endptr == '\0'); 
 }
 
 int main(int argc, char* argv[]) {

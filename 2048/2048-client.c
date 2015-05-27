@@ -1,11 +1,17 @@
 #define _GNU_SOURCE
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <assert.h>
+
+#include "helper.h"
 
 
 static const char* modulname;
@@ -39,5 +45,29 @@ static void bail_out(int eval, const char *fmt, ...)
 }
 
 int main(int argc, char* argv[]) {
-    usage();
+    modulname = argv[0];
+    int c; 
+    bool new_game = false;
+    int game_id; 
+
+    while ((c = getopt (argc, argv, "ni:")) != -1) {
+        switch (c) {
+            case 'i':
+                if (parse_int(optarg, &game_id)) {
+                    usage();   
+                } 
+                break;
+            case 'n':
+                new_game = true;
+                break;
+            case '?':
+                usage();   
+            default: 
+                assert(0);
+        }
+    }
+
+    if (argc != optind) {
+        usage(); 
+    }
 }
