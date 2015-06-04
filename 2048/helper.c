@@ -2,14 +2,12 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-
 
 #include "helper.h"
 
@@ -28,6 +26,13 @@ int parse_int(char * str, int * ptr) {
     return (*endptr == '\0'); 
 }
 
+char *get_game_sem(int game_id, int sem_num) {
+    char * buffer = malloc(10); 
+    sprintf(buffer, "%s%d-%d", SEM_GAME, game_id, sem_num );
+    buffer = realloc(buffer, strlen(buffer) + 1);   
+
+    return buffer;
+}
 
 void bail_out(char * modulname, int eval, const char *fmt, ...) {
     va_list ap;
@@ -49,7 +54,7 @@ void bail_out(char * modulname, int eval, const char *fmt, ...) {
 void *create_shared_memory(size_t size, char * name, int oflag) {
     void * data;
     int shared_memory_fd; 
-// 
+ 
     if ((shared_memory_fd = shm_open(name, oflag, PERMISSION)) == -1) {
         bail_out("", EXIT_FAILURE, "Error shm_open");
     }
