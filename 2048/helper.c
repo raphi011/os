@@ -1,4 +1,17 @@
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include <stdlib.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+
+
+#include "helper.h"
 
 /** parse_int
  * @brief Parses an int value
@@ -15,19 +28,46 @@ int parse_int(char * str, int * ptr) {
     return (*endptr == '\0'); 
 }
 
-enum {
-    ST_WON,
-    ST_LOST,
-    ST_NOSUCHGAME
-};
 
-enum {
-    CMD_LEFT,
-    CMD_RIGHT,
-    CMD_UP,
-    CMD_DOWN,
-    CMD_QUIT
-};
+void bail_out(char * modulname, int eval, const char *fmt, ...) {
+    va_list ap;
 
+    (void) fprintf(stderr, "%s: ", modulname);
+    if (fmt != NULL) {
+        va_start(ap, fmt);
+        (void) vfprintf(stderr, fmt, ap);
+        va_end(ap);
+    }
+    if (errno != 0) {
+        (void) fprintf(stderr, ": %s", strerror(errno));
+    }
+    (void) fprintf(stderr, "\n");
 
+    exit(eval);
+}
 
+void *create_shared_memory(size_t size, char * name, int oflag) {
+    void * data;
+    int shared_memory_fd; 
+// 
+    if ((shared_memory_fd = shm_open(name, oflag, PERMISSION)) == -1) {
+        bail_out("", EXIT_FAILURE, "Error shm_open");
+    }
+
+    if (ftruncate(shared_memory_fd, size) == -1) {
+        bail_out("", EXIT_FAILURE, "Error ftruncate");
+    }
+
+    data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED,
+            shared_memory_fd, 0);
+
+    if (data == MAP_FAILED) {
+        bail_out("", EXIT_FAILURE, "Error mmap");
+    }
+
+    if (close(shared_memory_fd) == -1) {
+        bail_out("", EXIT_FAILURE, "Error close");
+    }
+
+    return data;
+}

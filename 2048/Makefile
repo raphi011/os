@@ -3,15 +3,16 @@ GCC = gcc
 TARGET = 2048-server 2048-client
 SOURCE = Makefile 2048-server.c 2048-client.c
 
-CFLAGS = -std=c99 -Wall -Wextra -pedantic 
+CFLAGS = -std=gnu99 -Wall -Wextra -pedantic -g
+LFLAGS = -lrt -pthread
 
 all: $(TARGET)
 
-2048-server: 2048-server.c
-	$(GCC) $(CFLAGS) -o $@ $< 
+2048-server: 2048-server.c helper.c
+	$(GCC) $(CFLAGS) -o $@ $^ $(LFLAGS)
 
-2048-client: 2048-client.c
-	$(GCC) $(CFLAGS) -o $@ $< 
+2048-client: 2048-client.c helper.c
+	$(GCC) $(CFLAGS) -o $@ $^ $(LFLAGS)
 
 clean: 
 	rm -f $(TARGET)
