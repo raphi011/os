@@ -10,10 +10,12 @@
 
 #define PERMISSION (0600)
 
+extern char * modulname; 
+
 int parse_int(char *, int *);
-void *create_shared_memory(size_t, char *, int oflag); 
-void bail_out(char *, int, const char *, ...);
-char *get_game_sem(int game_id, int sem_num);
+void *create_shared_memory(size_t, char *, int); 
+void bail_out(int, const char *, ...);
+char *get_game_sem(int, int);
 
 enum game_state {
     ST_RUNNING,

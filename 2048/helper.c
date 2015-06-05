@@ -1,4 +1,3 @@
-
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -10,6 +9,7 @@
 #include <string.h>
 
 #include "helper.h"
+
 
 /** parse_int
  * @brief Parses an int value
@@ -34,7 +34,8 @@ char *get_game_sem(int game_id, int sem_num) {
     return buffer;
 }
 
-void bail_out(char * modulname, int eval, const char *fmt, ...) {
+
+void bail_out(int eval, const char *fmt, ...) {
     va_list ap;
 
     (void) fprintf(stderr, "%s: ", modulname);
@@ -56,23 +57,24 @@ void *create_shared_memory(size_t size, char * name, int oflag) {
     int shared_memory_fd; 
  
     if ((shared_memory_fd = shm_open(name, oflag, PERMISSION)) == -1) {
-        bail_out("", EXIT_FAILURE, "Error shm_open");
+        bail_out(EXIT_FAILURE, "Error shm_open");
     }
 
     if (ftruncate(shared_memory_fd, size) == -1) {
-        bail_out("", EXIT_FAILURE, "Error ftruncate");
+        bail_out(EXIT_FAILURE, "Error ftruncate");
     }
 
     data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED,
             shared_memory_fd, 0);
 
     if (data == MAP_FAILED) {
-        bail_out("", EXIT_FAILURE, "Error mmap");
+        bail_out(EXIT_FAILURE, "Error mmap");
     }
 
     if (close(shared_memory_fd) == -1) {
-        bail_out("", EXIT_FAILURE, "Error close");
+        bail_out(EXIT_FAILURE, "Error close");
     }
 
     return data;
 }
+

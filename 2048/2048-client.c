@@ -14,7 +14,7 @@
 
 #include "helper.h"
 
-#define ENDEBUG
+//#define ENDEBUG
 
 #ifdef ENDEBUG
 #define DEBUG(...) do { fprintf(stderr, __VA_ARGS__); } while(0)
@@ -22,7 +22,7 @@
 #define DEBUG(...)
 #endif
 
-static const char* modulname;
+char* modulname;
 
 sem_t *s1;
 sem_t *s2;
@@ -52,7 +52,7 @@ static enum game_command get_next_command() {
     
     while (true) {
         printf("Enter a command please: ");
-        scanf("%c\n",&command);
+        scanf(" %c\n",&command);
         switch (command) {
             case 'w':
                 return CMD_UP;
@@ -84,18 +84,25 @@ int connect() {
     struct connect *connection = (struct connect*)create_shared_memory(sizeof *connection, SHM_NAME, O_RDWR);
 
     if ((s1 = sem_open(SEM_1, 0)) == SEM_FAILED) {
-        bail_out("", EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
+        bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
     }
 
     if ((s2 = sem_open(SEM_2, 0)) == SEM_FAILED) {
-        bail_out("", EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
+        bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
     }
 
     // connection->new_game = false; 
     sem_post(s1);
     sem_wait(s2);
-    DEBUG("Client: received game_id: %d\n", connection->game_id);
-    return connection->game_id; 
+
+    int game_id = connection->game_id;
+    DEBUG("Client: received game_id: %d\n", game_id);
+
+    if (munmap(connection,sizeof(*connection)) == -1) {
+        bail_out(EXIT_FAILURE, "error munmap failed\n");
+    }
+
+    return game_id; 
 }
 
 int main(int argc, char* argv[]) {
@@ -103,20 +110,26 @@ int main(int argc, char* argv[]) {
 
     int c; 
     bool new_game = false;
-    int game_id; 
+    int game_id = 0;
 
     if (atexit(free_resources) != 0) {
-        bail_out("", EXIT_FAILURE, "Error atexit");
+        bail_out(EXIT_FAILURE, "Error atexit");
     } 
 
     while ((c = getopt (argc, argv, "ni:")) != -1) {
         switch (c) {
             case 'i':
-                if (parse_int(optarg, &game_id)) {
-                    usage();   
+                if (new_game) {
+                    usage();
+                }
+                if (!parse_int(optarg, &game_id)) {
+                   usage();   
                 } 
                 break;
             case 'n':
+                if (game_id != 0) {
+                    usage();
+                }
                 new_game = true;
                 break;
             case '?':
@@ -130,7 +143,12 @@ int main(int argc, char* argv[]) {
         usage(); 
     }
 
-    game_id = connect();
+    fflush(stdin);
+    fflush(stdout);
+
+    if (game_id == 0) {
+        game_id = connect();
+    }
 
     struct game_data *data = (struct game_data*)create_shared_memory(sizeof *data, SHM_NAME, O_RDWR);
 
@@ -138,18 +156,19 @@ int main(int argc, char* argv[]) {
     char *game_name2 = get_game_sem(game_id, 2);
 
     if ((s1 = sem_open(game_name1, 0)) == SEM_FAILED) {
-        bail_out("", EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
+        bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
     }
 
     if ((s2 = sem_open(game_name2, 0)) == SEM_FAILED) {
-        bail_out("", EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
+        bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
     }
 
-    while (true) {
-        sem_wait(s1); 
+    while (data->state == ST_RUNNING) {
         render_field(data->field); 
         data->command = get_next_command(); 
+
         sem_post(s2);
+        sem_wait(s1); 
     }
 
     return EXIT_SUCCESS;

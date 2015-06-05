@@ -14,7 +14,7 @@
 
 #include "helper.h"
 
-#define ENDEBUG
+// #define ENDEBUG
 
 #define COUNT_OF(x) (sizeof(x)/sizeof(x[0]))
 
@@ -24,15 +24,15 @@
 #define DEBUG(...)
 #endif
 
-static const char* modulname;
+char* modulname;
 
-volatile sig_atomic_t running = 1;
+// volatile sig_atomic_t running = 1;
 volatile sig_atomic_t terminating = 0;
 
 int connected_clients = 0;
 
 struct connect *connection;
-struct running_game *games;
+// struct running_game *games;
 
 pid_t pid; 
 
@@ -59,23 +59,41 @@ static void free_resources(void) {
     }
     terminating = 1;
     
-    (void)sem_close(s1);
-    (void)sem_close(s2);
-    (void)sem_close(child_1);
-    (void)sem_close(child_2); 
 
+    // child
     if (pid != 0) {
         (void)sem_unlink(SEM_1); 
         (void)sem_unlink(SEM_2);
         (void)sem_unlink(get_game_sem(connection->game_id, 1));
         (void)sem_unlink(get_game_sem(connection->game_id, 2));
+    } else { // parent 
+
+        if (sem_close(s1) == -1) {
+            fprintf(stderr, "sem_close failed");
+        }
+        if (sem_close(s2) == -1) {
+            fprintf(stderr, "sem_close failed");
+        }
+        if (sem_close(child_1) == -1) {
+            fprintf(stderr, "sem_close failed");
+        }
+        if (sem_close(child_2) == -1) {
+            fprintf(stderr, "sem_close failed");
+        }
+
+        if (munmap(connection, sizeof (*connection)) == -1) {
+            fprintf(stderr, "munmap failed");
+        }
+
+        if (shm_unlink(SHM_NAME) == -1) {
+            fprintf(stderr, "shm_unlink failed");
+        }
     }
 }
 
 static void signal_handler(int sig)
 {
-    DEBUG("Received signal! %d\n", sig);
-    /* signals need to be blocked by sigaction */
+    // freeing resources is handled with 'atexit'
     exit(EXIT_SUCCESS);
 }
 
@@ -110,7 +128,7 @@ int main(int argc, char* argv[]) {
     sigset_t blocked_signals;
 
     if (atexit(free_resources) != 0) {
-        bail_out("", EXIT_FAILURE, "Error atexit");
+        bail_out(EXIT_FAILURE, "Error atexit");
     }
     
     int c; 
@@ -136,7 +154,7 @@ int main(int argc, char* argv[]) {
     
     /* setup signal handlers */
     if(sigfillset(&blocked_signals) < 0) {
-        bail_out("", EXIT_FAILURE, "sigfillset");
+        bail_out(EXIT_FAILURE, "sigfillset");
     } else {
         const int signals[] = { SIGINT, SIGQUIT, SIGTERM };
         struct sigaction s;
@@ -145,7 +163,7 @@ int main(int argc, char* argv[]) {
         s.sa_flags = SA_RESTART;
         for (unsigned int i = 0; i < COUNT_OF(signals); i++) {
             if (sigaction(signals[i], &s, NULL) < 0) {
-                bail_out("", EXIT_FAILURE, "sigaction");
+                bail_out(EXIT_FAILURE, "sigaction");
             }
         }
     }
@@ -153,11 +171,12 @@ int main(int argc, char* argv[]) {
     s1 = sem_open(SEM_1, O_CREAT | O_EXCL, 0600, 0);
     s2 = sem_open(SEM_2, O_CREAT | O_EXCL, 0600, 0);
 
-    
     struct connect *connection = (struct connect*)create_shared_memory(sizeof *connection, SHM_NAME, O_RDWR | O_CREAT); 
 
     while (true) {
-        sem_wait(s1);
+        if (sem_wait(s1) == -1) {
+            bail_out(EXIT_FAILURE, "error sem_wait: %s\n", strerror(errno));
+        }
 
         connection->game_id = ++connected_clients;
         DEBUG("Server: assigned game_id: %d\n", connection->game_id);
@@ -165,24 +184,29 @@ int main(int argc, char* argv[]) {
         char *game_name1 = get_game_sem(connection->game_id, 1);
         char *game_name2 = get_game_sem(connection->game_id, 2);
                 
-
-        child_1 = sem_open(game_name1, O_CREAT | O_EXCL, 0600, 0);
-        child_2 = sem_open(game_name2, O_CREAT | O_EXCL, 0600, 0);
+        if ((child_1 = sem_open(game_name1, O_CREAT | O_EXCL, 0600, 0)) == SEM_FAILED) {
+            bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
+        }
+        if ((child_2 = sem_open(game_name2, O_CREAT | O_EXCL, 0600, 0)) == SEM_FAILED) {
+            bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
+        }
     
         switch (pid = fork()) {
-            case -1: bail_out("", EXIT_FAILURE, "can't fork\n");
+            case -1: bail_out(EXIT_FAILURE, "can't fork\n");
                      break;
                      // child process
             case 0:  new_game(connection->game_id); 
                      break; 
-                     // parent process
-            default: // maybe save pid for later?
+                     
+            default: // parent process
                      break; 
         }
         
-        sem_post(s2);
-}
+        if (sem_post(s2) == -1) {
+            bail_out(EXIT_FAILURE, "error sem_post: %s\n", strerror(errno));
+        }
+    }
 
-return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
 
