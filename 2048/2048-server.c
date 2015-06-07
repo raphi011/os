@@ -1,3 +1,10 @@
+/** 
+ * @file 2048-server.c
+ * @author Raphael Gruber (0828630)
+ * @brief The server implementation of 2048
+ * @date 07.06.2015
+ */
+
 #define _GNU_SOURCE
 
 #include <math.h>
@@ -18,6 +25,9 @@
 
 #define ENDEBUG
 
+/**
+ * Calculates the size of an array
+ */
 #define COUNT_OF(x) (sizeof(x)/sizeof(x[0]))
 
 #ifdef ENDEBUG
@@ -26,32 +36,72 @@
 #define DEBUG(...)
 #endif
 
+/** 
+ * The name of the program
+ */
 char* modulname;
 
+/**
+ * 1 when a signal was received
+ */
 volatile sig_atomic_t terminating = 0;
 
-static int connected_clients = 0;
+/**
+ * count of clients that connected
+ */
+int connected_clients = 0;
 
-static struct connect *connection;
+/**
+ * shared memory for establishing a connection
+ */
+struct connect *connection;
 
-static pid_t pid; 
+/** 
+ * fork pid
+ */
+pid_t pid; 
 
-static sem_t *s1;
-static sem_t *s2;
-static sem_t *child_1;
-static sem_t *child_2;
+/** 
+ * true if a game has started
+ */
+bool started;
 
-static char * game_name1;
-static char * game_name2; 
-static char * shm_game; 
 
-static struct game_data *data;
+/**
+ * semaphores
+ */
+sem_t *s1;
+sem_t *s2;
+sem_t *child_1;
+sem_t *child_2;
 
-static void usage() {
+/**
+ * semaphore names
+ */
+char * game_name1;
+char * game_name2; 
+char * shm_game; 
+
+/**
+ * game data shared memory
+ */
+struct game_data *data;
+
+/**
+ * usage
+ * @brief prints the usage message with the correct call syntax and exits
+ * with EXIT_FAILURE
+ * @details Global parameters: modulname
+ */
+static void usage(void) {
     (void)fprintf(stderr, "USAGE: %s [-p power_of_two]\n\t-p:\tPlay until 2ˆpower_of_two is reached (default: 11)\n",modulname);
     exit(EXIT_FAILURE);
 }
 
+/** 
+ * free_resources
+ * @brief frees open resources and signal handlers
+ */
 static void free_resources(void) {
     
     sigset_t blocked_signals;
@@ -65,69 +115,89 @@ static void free_resources(void) {
     terminating = 1;
 
     
-    if (pid == 0) { // child
+    if (started && pid == 0) { // child
         DEBUG("Child shutting down\n");
 
-        if (sem_close(child_1) == -1) {
-            fprintf(stderr, "sem_close child_1 failed\n");
+        int sem_clo_1 = sem_close(child_1);
+        int sem_clo_2 = sem_close(child_2);
+
+        if (sem_clo_1 || sem_clo_2) {
+            (void)fprintf(stderr, "%s: error sem_close\n", modulname);
         }
 
-        if (sem_close(child_2) == -1) {
-            fprintf(stderr, "sem_close child_2 failed\n");
+        if (game_name1) {
+            int sem_unl_1 = sem_unlink(game_name1);
+            if (sem_unl_1 != 0) {
+                (void)fprintf(stderr, "%s: error sem_unlink\n", modulname);
+            }
+        }
+        if (game_name2) {
+            int sem_unl_2 = sem_unlink(game_name2);
+            if (sem_unl_2 != 0) {
+                (void)fprintf(stderr, "%s: error sem_unlink\n", modulname);
+            }
         }
 
-        if (sem_unlink(game_name1) == -1) {
-            fprintf(stderr, "sem_unlink failed\n");
-        }
-        
-        if (sem_unlink(game_name2) == -1) {
-            fprintf(stderr, "sem_unlink failed\n");
+        if (data != NULL) {
+            if (munmap(data, sizeof (*data)) == -1) {
+                (void)fprintf(stderr, "%s: error munmap\n", modulname);
+            }
         }
 
-        if (munmap(data, sizeof (*data)) == -1) {
-            fprintf(stderr, "game_data\n");
-        }
-
-        if (shm_unlink(shm_game) == -1) {
-            fprintf(stderr, "shm_unlink failed\n");
+        if (shm_game != NULL) {
+            if (shm_unlink(shm_game) == -1) {
+                (void)fprintf(stderr, "%s: error shm_unlink\n", modulname);
+            }
         }
 
         (void)free(game_name1);
         (void)free(game_name2);
 
     } else { // parent 
+        DEBUG("Parent shutting down\n");
 
-        if (sem_close(s1) == -1) {
-            fprintf(stderr, "sem_close failed\n");
-        }
-        if (sem_close(s2) == -1) {
-            fprintf(stderr, "sem_close failed\n");
+        int sem_clo_1 = sem_close(s1);
+        int sem_clo_2 = sem_close(s2);
+
+        if (sem_clo_1 || sem_clo_2) {
+            (void)fprintf(stderr, "%s: error sem_close\n", modulname);
         }
 
-        if (sem_unlink(SEM_CON_1)) {
-            fprintf(stderr, "sem_unlink failed\n");
-        }
-        if (sem_unlink(SEM_CON_2)) {
-            fprintf(stderr, "sem_unlink failed\n");
+        int sem_unl_1 = sem_unlink(SEM_CON_1);
+        int sem_unl_2 = sem_unlink(SEM_CON_2);
+
+        if (sem_unl_1 || sem_unl_2) {
+            (void)fprintf(stderr, "%s: error sem_unlink\n", modulname);
         }
 
         if (munmap(connection, sizeof (*connection)) == -1) {
-            fprintf(stderr, "munmap failed\n");
+            (void)fprintf(stderr, "%s: error munmap\n", modulname);
         }
 
         if (shm_unlink(SHM_CON) == -1) {
-            fprintf(stderr, "shm_unlink failed\n");
+            (void)fprintf(stderr, "%s: error shm_unlink\n", modulname);
         }
     }
 }
 
-static void signal_handler()
-{
+/**
+ * signal_handler
+ * @brief The signal handler
+ * @param sig The signal that occured
+ */
+void signal_handler(int sig) {
+    (void)printf("%s: received signal %d\n",modulname, sig);
     // freeing resources is handled by 'atexit'
     exit(EXIT_SUCCESS);
 }
 
-int get_empty_field(int field[]) {
+/**
+ *  get_empty_field
+ * @brief looks for an empty field
+ * @param field the game field
+ * @return returns the index for an empty field or -1 if none are remaining
+ */
+static int get_empty_field(int field[]) {
     int free_fields[FIELD_SIZE * FIELD_SIZE];
     int free_count = 0;
 
@@ -148,7 +218,14 @@ int get_empty_field(int field[]) {
     }
 }
 
-int get_prev_index(int index, enum game_command cmd) {
+/**
+ *  get_prev_index
+ * @brief returns previous index depending on movement direction
+ * @param index the current index
+ * @param cmd the movement direction
+ * @return previous index
+ */
+static int get_prev_index(int index, enum game_command cmd) {
 
     switch (cmd) {
          case CMD_UP: 
@@ -170,12 +247,63 @@ int get_prev_index(int index, enum game_command cmd) {
     return index;
 }
 
-void add_random_value(struct game_data *data) {
+/**
+ * move_available
+ * @brief checks if there are game moves remaining
+ * @param field the game field
+ * @return returns true if there are game moves remaining
+ */
+static bool move_available(int field[]) {
+
+    for (int x = 0; x < FIELD_SIZE; x++) {
+        for (int y = 0; y < FIELD_SIZE; y++) {
+
+        int index = get_index(x,y);
+
+        for (int direction = 0; direction < 4; direction++) {
+            int neighbour_index;
+
+            switch (direction) {
+                case 0: // up
+                    if ((neighbour_index = get_index(x,y-1)) != -1 &&
+                        field[index] == field[neighbour_index]) {
+                        return true;
+                    }
+                case 1: // right
+                    if ((neighbour_index = get_index(x+1,y)) != -1 &&
+                        field[index] == field[neighbour_index]) {
+                        return true;
+                    }
+                case 2: // down
+                    if ((neighbour_index = get_index(x,y+1)) != -1 &&
+                        field[index] == field[neighbour_index]) {
+                        return true;
+                    }
+                case 3: // left
+                    if ((neighbour_index = get_index(x-1,y)) != -1 &&
+                        field[index] == field[neighbour_index]) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+}
+            
+/**
+ * add_random_value
+ * @brief looks for an empty spot and sets it to 2 or 4 
+ * @param data the game data
+ */
+static void add_random_value(struct game_data *data) {
     int r = rand() % 3;
     int new_value = (r == 0 ? 2 : 4);
     int next_empty_field = get_empty_field(data->field);   
 
     data->field[next_empty_field] = new_value;
+   
 
     if (next_empty_field == -1) {
         data->state = ST_LOST;
@@ -183,7 +311,14 @@ void add_random_value(struct game_data *data) {
     }
 }
 
-bool make_game_move(struct game_data *data, int power_of_two) {
+/**
+ * make_game_move 
+ * @brief makes a game move
+ * @param data the game data
+ * @param power_of_two power of two when game is won 
+ * @return true if movement has occured`
+ */
+static bool make_game_move(struct game_data *data, int power_of_two) {
     enum game_command cmd = data->command;
     int *field = data->field;
     int highest_exp = 0;  
@@ -220,8 +355,6 @@ bool make_game_move(struct game_data *data, int power_of_two) {
                 break;
             }
 
-
-
             int exp = log2(field[get_index(x,y)]);
 
             if (exp > highest_exp) {
@@ -230,7 +363,7 @@ bool make_game_move(struct game_data *data, int power_of_two) {
         }
     }
 
-    if (get_empty_field(data->field) == -1) {
+    if (get_empty_field(data->field) == -1 && !move_available(data->field)) {
         data->state = ST_LOST;
     } else if (highest_exp == power_of_two) {
         data->state = ST_WON;
@@ -239,7 +372,13 @@ bool make_game_move(struct game_data *data, int power_of_two) {
     return movement;
 }
 
-void new_game(int game_id, int power_of_two) {
+/**
+ * new_game 
+ * @brief  creates a new game
+ * @param game_id the game id
+ * @param power_of_two power of two when game is won 
+ */
+static void new_game(int game_id, int power_of_two) {
     DEBUG("Server: created new game with id %d\n", game_id);
 
     shm_game = get_game_shm(game_id);
@@ -251,16 +390,7 @@ void new_game(int game_id, int power_of_two) {
 
     while (true) {
 
-        sem_post(child_1); 
-        sem_wait(child_2);
-
-        if (data->command == CMD_QUIT) {
-            exit(EXIT_SUCCESS);
-        }
-
-        if (data->command != CMD_NONE && make_game_move(data, power_of_two)) {
-            add_random_value(data);
-        }
+        sem_post_sec(child_1); 
 
         switch (data->state) {
             case ST_LOST: 
@@ -270,11 +400,29 @@ void new_game(int game_id, int power_of_two) {
                 break;
         }
 
+        sem_wait_sec(child_2);
+
+        if (data->command == CMD_QUIT) {
+            exit(EXIT_SUCCESS);
+        }
+
+        if (data->command != CMD_NONE && make_game_move(data, power_of_two)) {
+            add_random_value(data);
+        }
     }
 }
 
+/**
+ * main
+ * @brief The main entry point of the program.
+ * @param argc The number of command-line parameters in argv.
+ * @param argv The array of command-line parameters, argc elements long.
+ * @details Global variables: modulname, params
+ * @return The exit code of the program. EXIT_SUCCESS on success, EXIT_FAILURE on failure.
+ */
 int main(int argc, char* argv[]) {
     modulname = argv[0];
+    started = false;
 
     srand(time(NULL));
 
@@ -327,10 +475,8 @@ int main(int argc, char* argv[]) {
     struct connect *connection = (struct connect*)create_shared_memory(sizeof *connection, SHM_CON, O_RDWR | O_CREAT); 
 
     while (true) {
-        // wait for a new connection
-        if (sem_wait(s1) == -1) {
-            bail_out(EXIT_FAILURE, "error sem_wait: %s\n", strerror(errno));
-        }
+        sem_wait_sec(s1);
+        started = true;
 
         connection->game_id = ++connected_clients;
 
@@ -367,9 +513,7 @@ int main(int argc, char* argv[]) {
                      break; 
         }
         
-        if (sem_post(s2) == -1) {
-            bail_out(EXIT_FAILURE, "error sem_post: %s\n", strerror(errno));
-        }
+        sem_post_sec(s2);
     }
 
     return EXIT_SUCCESS;

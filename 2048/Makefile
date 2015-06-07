@@ -1,3 +1,7 @@
+# File:		2048	
+# Author: 	Raphael Gruber (0828630)
+# Date:		07.06.2015
+
 GCC = gcc
 
 TARGET = 2048-server 2048-client
