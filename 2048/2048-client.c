@@ -14,7 +14,7 @@
 
 #include "helper.h"
 
-//#define ENDEBUG
+#define ENDEBUG
 
 #ifdef ENDEBUG
 #define DEBUG(...) do { fprintf(stderr, __VA_ARGS__); } while(0)
@@ -23,6 +23,8 @@
 #endif
 
 char* modulname;
+
+#define INPUT_BUFFER_SIZE (100)
 
 sem_t *s1;
 sem_t *s2;
@@ -33,13 +35,14 @@ static void usage() {
 }
 
 static void free_resources(void) {
-
+    // todo
 }
 
-static void render_field(int field[]) {
+static void draw_field(int field[]) {
+    printf("\n");
     for (int y = 0; y < FIELD_SIZE; y++) {
         for (int x = 0; x < FIELD_SIZE; x++) {
-            int position = y*FIELD_SIZE + x;
+            int position = get_index(x,y);
             printf("\t%d", field[position]);
         }
         printf("\n");
@@ -47,32 +50,38 @@ static void render_field(int field[]) {
 }
 
 static enum game_command get_next_command() {
-    char command;
-
+    char buffer[INPUT_BUFFER_SIZE]; 
     
     while (true) {
         printf("Enter a command please: ");
-        scanf(" %c\n",&command);
-        switch (command) {
+        fgets(buffer, INPUT_BUFFER_SIZE, stdin);
+
+        if (buffer[1] != '\n') {
+            (void)printf("Please enter a command followed by a newline\n"); 
+            continue;
+        }
+
+        switch (buffer[0]) {
             case 'w':
+                printf("received cmd_up\n");
                 return CMD_UP;
-                break;
             case 'a':
+                printf("received cmd_left\n");
                 return CMD_LEFT;
-                break;
             case 's':
+                printf("received cmd_down\n");
                 return CMD_DOWN;
-                break;
             case 'd': 
+                printf("received cmd_right\n");
                 return CMD_RIGHT;
-                break;
             case 'q':
+                printf("received cmd_quit\n");
                 return CMD_QUIT;
-                break;
             case 't':
-                exit(EXIT_SUCCESS);
+                printf("received cmd_terminate\n");
+                return CMD_NONE;
             default: 
-                printf("wrong command!\n");
+                printf("wrong command\n");
                 break;
         }
     }
@@ -81,17 +90,16 @@ static enum game_command get_next_command() {
 
 int connect() {
     
-    struct connect *connection = (struct connect*)create_shared_memory(sizeof *connection, SHM_NAME, O_RDWR);
+    struct connect *connection = (struct connect*)create_shared_memory(sizeof *connection, SHM_CON, O_RDWR);
 
-    if ((s1 = sem_open(SEM_1, 0)) == SEM_FAILED) {
+    if ((s1 = sem_open(SEM_CON_1, 0)) == SEM_FAILED) {
         bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
     }
 
-    if ((s2 = sem_open(SEM_2, 0)) == SEM_FAILED) {
+    if ((s2 = sem_open(SEM_CON_2, 0)) == SEM_FAILED) {
         bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
     }
 
-    // connection->new_game = false; 
     sem_post(s1);
     sem_wait(s2);
 
@@ -113,7 +121,7 @@ int main(int argc, char* argv[]) {
     int game_id = 0;
 
     if (atexit(free_resources) != 0) {
-        bail_out(EXIT_FAILURE, "Error atexit");
+        bail_out(EXIT_FAILURE, "Error atexit\n");
     } 
 
     while ((c = getopt (argc, argv, "ni:")) != -1) {
@@ -150,7 +158,6 @@ int main(int argc, char* argv[]) {
         game_id = connect();
     }
 
-    struct game_data *data = (struct game_data*)create_shared_memory(sizeof *data, SHM_NAME, O_RDWR);
 
     char *game_name1 = get_game_sem(game_id, 1);
     char *game_name2 = get_game_sem(game_id, 2);
@@ -163,12 +170,41 @@ int main(int argc, char* argv[]) {
         bail_out(EXIT_FAILURE, "error sem_open%s\n", strerror(errno));
     }
 
+    sem_wait(s1);
+
+    char * shm_game = get_game_shm(game_id); 
+
+    struct game_data *data = (struct game_data*)create_shared_memory(sizeof *data, shm_game, O_RDWR);
+
+    draw_field(data->field); 
+
     while (data->state == ST_RUNNING) {
-        render_field(data->field); 
+
         data->command = get_next_command(); 
 
         sem_post(s2);
+
+        switch (data->command) {
+            case CMD_QUIT:
+            case CMD_NONE: 
+                return EXIT_SUCCESS; 
+            default: break;
+        }
+
         sem_wait(s1); 
+        
+        switch (data->state) {
+            case ST_LOST:
+                (void)printf("You've lost");
+                return EXIT_SUCCESS;
+            case ST_WON:
+                (void)printf("You've won");
+                return EXIT_SUCCESS;
+            default:
+                break;
+        }
+
+        draw_field(data->field); 
     }
 
     return EXIT_SUCCESS;

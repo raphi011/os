@@ -1,10 +1,12 @@
 #include <stdbool.h>
 
 #define FIELD_SIZE (4)
-#define SHM_NAME ("/OSUE")
 
-#define SEM_1 ("/OSUE_SEM1")
-#define SEM_2 ("/OSUE_SEM2")
+#define SHM_CON ("/OSUE_CON")
+#define SHM_GAME ("/OSUE_GAME")
+
+#define SEM_CON_1 ("/OSUE_CON1")
+#define SEM_CON_2 ("/OSUE_CON2")
 
 #define SEM_GAME ("/OSUE_GAME")
 
@@ -12,6 +14,8 @@
 
 extern char * modulname; 
 
+int get_index(int, int);
+char *get_game_shm(int);
 int parse_int(char *, int *);
 void *create_shared_memory(size_t, char *, int); 
 void bail_out(int, const char *, ...);

@@ -26,6 +26,18 @@ int parse_int(char * str, int * ptr) {
     return (*endptr == '\0'); 
 }
 
+int get_index(int x, int y) {
+    return y * FIELD_SIZE + x;
+}
+
+char *get_game_shm(int game_id) {
+    char * buffer = malloc(10); 
+    sprintf(buffer, "%s%d", SHM_GAME, game_id);
+    buffer = realloc(buffer, strlen(buffer) + 1);   
+
+    return buffer;
+}
+
 char *get_game_sem(int game_id, int sem_num) {
     char * buffer = malloc(10); 
     sprintf(buffer, "%s%d-%d", SEM_GAME, game_id, sem_num );
