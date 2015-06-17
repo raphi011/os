@@ -1,4 +1,4 @@
-SOURCE = tm_main.c
+SOURCE = tm_main.c svctl.c tm_main.h
 
 
 upload: $(SOURCE) 
