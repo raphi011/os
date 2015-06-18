@@ -16,6 +16,8 @@
 #define DEBUG(...)
 #endif
 
+#define KEY_LENGTH (10)
+
 static const char *modulname = "svctl";
 
 int devfd; 
@@ -69,21 +71,23 @@ int main(int argc, char* argv[]) {
         modulname = argv[0];
     }
 
-    int secvault_size;
+    int secvault_size, secvault_id;
     char c;
+    int create = 0, key = 0, clear = 0, remove = 0;
     
     while ((c = getopt (argc, argv, "kedc:")) != -1) {
         switch (c) {
             case 'k':
-                // todo
+                key = 1;
                 break;
             case 'e':
-                // todo
+                clear = 1;
                 break;
             case 'd':
-                // todo
+                remove = 1;
                 break;
             case 'c':
+                create = 1;
                 if (!parse_int(optarg, &secvault_size)) {
                     usage();   
                 } 
@@ -95,9 +99,19 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    /* if (argc != optind) {
+    if ((argc - 1) != optind) {
         usage(); 
-    } */
+    } else {
+        if (!parse_int(argv[optind], &secvault_id)) {
+            usage();
+        }
+    }
+
+    int par_cnt = (create + key + clear + remove);
+
+    if (par_cnt > 1) {
+        usage(); 
+    }
 
     devfd = open("/dev/sv_ctl", O_RDWR); 
 
@@ -105,12 +119,49 @@ int main(int argc, char* argv[]) {
         bail_out(EXIT_FAILURE, "couldn't open /dev/sv_ctl");
     }
 
-    int vaultno = 1;
+    int ret = 0;
+    struct dev_params params = {0};
+    params.id = secvault_id;
 
-    int ret = ioctl(devfd, SECVAULT_IOC_CREATE, &vaultno); 
-
-    if (ret == -1) {
-        bail_out(EXIT_FAILURE, "ioctl error: %s\n", strerror(errno));
+    if (create == 1 || key == 1) {
+        char *buf = malloc(KEY_LENGTH + 1); 
+        (void)printf("Please enter a new key with a maximum of %d chars:\n", KEY_LENGTH);
+        if (fgets(buf, KEY_LENGTH + 1, stdin) == NULL) {
+            bail_out(EXIT_FAILURE, "missing key\n");
+        } else {
+            (void)memcpy(params.key, buf, strlen(buf)); 
+        }
+    }
+    if (par_cnt == 0) {
+        // output size of device
+        ret = ioctl(devfd, SECVAULT_IOC_SIZE, &secvault_id); 
+        if (ret > 0) {
+            (void)printf("size of secvault %d: %d\n", secvault_id, ret);
+        } else {
+            bail_out(EXIT_FAILURE, "ioctl size error: %s\n", strerror(errno));
+        }
+    } else if (create == 1) {
+        params.size = secvault_size;
+        ret = ioctl(devfd, SECVAULT_IOC_CREATE, &params); 
+        (void)printf("secvault with id %d created\n", secvault_id);
+        if (ret == -1) {
+            bail_out(EXIT_FAILURE, "ioctl create error: %s\n", strerror(errno));
+        }
+    } else if (key == 1) {
+        ret = ioctl(devfd, SECVAULT_IOC_CHANGEKEY, &secvault_id); 
+        if (ret == -1) {
+            bail_out(EXIT_FAILURE, "ioctl changekey error: %s\n", strerror(errno));
+        }
+    } else if (clear == 1) {
+        ret = ioctl(devfd, SECVAULT_IOC_DELETE, &secvault_id); 
+        if (ret == -1) {
+            bail_out(EXIT_FAILURE, "ioctl delete error: %s\n", strerror(errno));
+        }
+    } else { // remove == 1
+        ret = ioctl(devfd, SECVAULT_IOC_REMOVE, &secvault_id); 
+        if (ret == -1) {
+            bail_out(EXIT_FAILURE, "ioctl create error: %s\n", strerror(errno));
+        }
     }
 
     free_resources();
