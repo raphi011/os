@@ -1,5 +1,4 @@
 #include <linux/slab.h>
-//#include <linux/string.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
@@ -134,10 +133,19 @@ long secvault_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
     return retval;
 }
 
+static void encrypt(char * buf, size_t pos, size_t offset, char * key) {
+    int i;
+
+    for (i = pos; i < (pos + offset); i++) {
+        buf[i] = buf[i] ^ key[i % SECVAULT_KEY_LENGTH];
+    }
+}
+
 ssize_t secvault_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
 
     struct secvault_dev *dev;
     dev = filp->private_data;
+    ssize_t pos = *f_pos;
 
     printk(KERN_INFO "secvault: write size: %d, f_pos: %d, count: %d\n", (int)dev->size, (int)*f_pos, (int)count);
 
@@ -146,15 +154,16 @@ ssize_t secvault_write(struct file *filp, const char __user *buf, size_t count, 
     if (mutex_lock_interruptible(&dev->mutex)) {
         return -ERESTARTSYS;
     }
-    if (*f_pos + count > dev->size) {
+    if (pos + count > dev->size) {
         retval = -ENOSPC;
         goto out;
-        //count = dev->size - *f_pos;
     }
-    if (copy_from_user(dev->data + (long)*f_pos, buf, count)) {
+    if (copy_from_user(dev->data + (long)pos, buf, count)) {
         retval = -EFAULT;
         goto out;
     } 
+
+    encrypt(dev->data, pos, count, dev->key);
 
     *f_pos += count;
     retval = count;
@@ -171,20 +180,31 @@ ssize_t secvault_read(struct file *filp, char __user *buf, size_t count, loff_t 
     struct secvault_dev *dev;
     dev = filp->private_data;
     ssize_t retval = 0;
+    ssize_t pos = *f_pos;
 
     if (mutex_lock_interruptible(&dev->mutex)) {
         return -ERESTARTSYS;
     }
-    if (*f_pos >= dev->size) {
+    if (pos >= dev->size) {
         goto out;
     }
-    if (*f_pos + count > dev->size) {
-        count = dev->size - *f_pos;
+    if (pos + count > dev->size) {
+        count = dev->size - pos;
     }
-    if (copy_to_user(buf, dev->data + (long)*f_pos, count)) {
+    
+    /* char * tmp = kmalloc(count, GFP_KERNEL);
+    memcpy(tmp, dev->data + pos, count);
+    encrypt(tmp, 0, pos */
+
+    encrypt(dev->data, pos, count, dev->key);
+
+    if (copy_to_user(buf, dev->data + pos, count)) {
         retval = -EFAULT;
+        encrypt(dev->data, pos, count, dev->key);
         goto out;
     }
+
+    encrypt(dev->data, pos, count, dev->key);
 
     *f_pos += count;
     retval = count;

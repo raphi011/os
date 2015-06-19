@@ -1,4 +1,4 @@
-SOURCE = secvault.c secvault.h svctl.c secvault_load secvault_unload
+SOURCE = secvault.c secvault.h svctl.c secvault_load secvault_unload Makefile
 
 obj-m += secvault.o
 

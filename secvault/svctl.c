@@ -16,7 +16,6 @@
 #define DEBUG(...)
 #endif
 
-#define KEY_LENGTH (10)
 
 static const char *modulname = "svctl";
 
@@ -124,9 +123,9 @@ int main(int argc, char* argv[]) {
     params.id = secvault_id;
 
     if (create == 1 || key == 1) {
-        char *buf = malloc(KEY_LENGTH + 1); 
-        (void)printf("Please enter a new key with a maximum of %d chars:\n", KEY_LENGTH);
-        if (fgets(buf, KEY_LENGTH + 1, stdin) == NULL) {
+        char *buf = malloc(SECVAULT_KEY_LENGTH + 1); 
+        (void)printf("Please enter a new key with a maximum of %d chars:\n", SECVAULT_KEY_LENGTH);
+        if (fgets(buf,SECVAULT_KEY_LENGTH + 1, stdin) == NULL) {
             bail_out(EXIT_FAILURE, "missing key\n");
         } else {
             (void)memcpy(params.key, buf, strlen(buf)); 

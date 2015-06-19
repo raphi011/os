@@ -1,0 +1,9 @@
+#!/bin/sh
+module="secvault"
+device="secvault"
+ctrldevice="sv_ctl"
+
+/sbin/rmmod $module $* || exit 1
+
+rm -f /dev/${ctrldevice}
+rm -f /dev/${device}[0-3]

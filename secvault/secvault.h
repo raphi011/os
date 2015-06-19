@@ -19,6 +19,7 @@ struct dev_params {
 
 #define SECVAULT_IOC_MAXNR (5)
 
+#define SECVAULT_KEY_LENGTH (10)
 #define SECVAULT_MAJOR (231)
 #define SECVAULT_MINOR (0)
 #define SECVAULT_NR_DEVS (4)
