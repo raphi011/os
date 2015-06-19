@@ -1,4 +1,5 @@
 #include <linux/slab.h>
+//#include <linux/string.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
@@ -10,7 +11,7 @@
 #include <linux/cdev.h>
 #include <asm/uaccess.h>
 
-#include "tm_main.h"
+#include "secvault.h"
 
 struct secvault_dev {
     void *data;            // pointer to the allocated memory
@@ -36,9 +37,11 @@ static long delete(long id) {
 static long remove(long id) {
     struct secvault_dev dev = secvault_devices[id];
 
-    kfree(dev.data);
+    if (dev.data) {
+        kfree(dev.data);
+    }
+
     dev.data = NULL;
-    kfree(dev.key); 
     dev.key = NULL;
     dev.size = 0;
 
@@ -101,23 +104,24 @@ long secvault_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
             }
             break;
         case SECVAULT_IOC_DELETE:
-            retval = __get_user(id, (int __user *)arg);
+                retval = __get_user(id, (int __user *)arg);
             printk(KERN_INFO "secvault: delete %d\n", id);
-            if (retval) {
+            if (retval == 0) {
                 retval = delete(id);
             }
             break;
         case SECVAULT_IOC_SIZE:
             retval = __get_user(id, (int __user *)arg);
             printk(KERN_INFO "secvault: size %d\n", id);
-            if (retval) {
-                retval = size(id);
+            if (retval == 0) {
+                int tmp = size(id);
+                retval = __put_user(tmp, (int __user *)arg);
             }
             break;
         case SECVAULT_IOC_REMOVE:
             retval = __get_user(id, (int __user *)arg);
             printk(KERN_INFO "secvault: remove %d\n", id);
-            if (retval) {
+            if (retval == 0) {
                 retval = remove(id);
             }
             break;
@@ -255,9 +259,6 @@ void secvault_cleanup_module(void) {
         for (i = 0; i < secvault_nr_devs; i++) {
             if (secvault_devices[i].data) {
                 kfree(secvault_devices[i].data);
-            }
-            if (secvault_devices[i].key) {
-                kfree(secvault_devices[i].key);
             }
             cdev_del(&secvault_devices[i].cdev);
         }

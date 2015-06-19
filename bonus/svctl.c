@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "tm_main.h"
+#include "secvault.h"
 
 #ifdef ENDEBUG
 #define DEBUG(...) do { fprintf(stderr, __VA_ARGS__); } while(0)
@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
     if (par_cnt == 0) {
         // output size of device
         ret = ioctl(devfd, SECVAULT_IOC_SIZE, &secvault_id); 
-        if (ret > 0) {
+        if (ret >= 0) {
             (void)printf("size of secvault %d: %d\n", secvault_id, ret);
         } else {
             bail_out(EXIT_FAILURE, "ioctl size error: %s\n", strerror(errno));
