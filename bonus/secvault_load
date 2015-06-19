@@ -1,0 +1,14 @@
+#!/bin/sh
+module="secvault"
+device="secvault"
+major=231
+
+rm -f /dev/sv_ctl
+mknod /dev/sv_ctl c $major 0
+
+rm -f /dev/${device}[0-3]
+mknod /dev/${device}0 c $major 1 
+mknod /dev/${device}1 c $major 2 
+mknod /dev/${device}2 c $major 3
+mknod /dev/${device}3 c $major 4
+
